@@ -23,6 +23,15 @@ import AbortError from './abort-error';
 // fix an issue where "PassThrough", "resolve" aren't a named export for node <10
 const PassThrough = Stream.PassThrough;
 const resolve_url = Url.resolve;
+function pipe(src, through) {
+	const output = src.pipe(through);
+	if (src.on) {
+		src.on('error', (...args) => {
+			output.emit('error', ...args);
+		});
+	}
+	return output;
+}
 
 /**
  * Fetch function
@@ -181,7 +190,7 @@ export default function fetch(url, opts) {
 			res.once('end', () => {
 				if (signal) signal.removeEventListener('abort', abortAndFinalize);
 			});
-			let body = res.pipe(new PassThrough());
+			let body = pipe(res, new PassThrough());
 
 			const response_options = {
 				url: request.url,
@@ -222,7 +231,7 @@ export default function fetch(url, opts) {
 
 			// for gzip
 			if (codings == 'gzip' || codings == 'x-gzip') {
-				body = body.pipe(zlib.createGunzip(zlibOptions));
+				body = pipe(body, zlib.createGunzip(zlibOptions));
 				response = new Response(body, response_options);
 				resolve(response);
 				return;
@@ -236,9 +245,9 @@ export default function fetch(url, opts) {
 				raw.once('data', chunk => {
 					// see http://stackoverflow.com/questions/37519828
 					if ((chunk[0] & 0x0F) === 0x08) {
-						body = body.pipe(zlib.createInflate());
+						body = pipe(body, zlib.createInflate());
 					} else {
-						body = body.pipe(zlib.createInflateRaw());
+						body = pipe(body, zlib.createInflateRaw());
 					}
 					response = new Response(body, response_options);
 					resolve(response);
@@ -248,7 +257,7 @@ export default function fetch(url, opts) {
 
 			// for br
 			if (codings == 'br' && typeof zlib.createBrotliDecompress === 'function') {
-				body = body.pipe(zlib.createBrotliDecompress());
+				body = pipe(body, zlib.createBrotliDecompress());
 				response = new Response(body, response_options);
 				resolve(response);
 				return;
