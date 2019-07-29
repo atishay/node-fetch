@@ -241,7 +241,7 @@ export default function fetch(url, opts) {
 			if (codings == 'deflate' || codings == 'x-deflate') {
 				// handle the infamous raw deflate response from old servers
 				// a hack for old IIS and Apache servers
-				const raw = res.pipe(new PassThrough());
+				const raw = pipe(res, new PassThrough());
 				raw.once('data', chunk => {
 					// see http://stackoverflow.com/questions/37519828
 					if ((chunk[0] & 0x0F) === 0x08) {

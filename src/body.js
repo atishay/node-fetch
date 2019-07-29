@@ -18,6 +18,16 @@ const INTERNALS = Symbol('Body internals');
 // fix an issue where "PassThrough" isn't a named export for node <10
 const PassThrough = Stream.PassThrough;
 
+function pipe(src, through) {
+	const output = src.pipe(through);
+	if (src.on) {
+		src.on('error', (...args) => {
+			output.emit('error', ...args);
+		});
+	}
+	return output;
+}
+
 /**
  * Body mixin
  *
@@ -398,8 +408,8 @@ export function clone(instance) {
 		// tee instance body
 		p1 = new PassThrough();
 		p2 = new PassThrough();
-		body.pipe(p1);
-		body.pipe(p2);
+		pipe(body, p1);
+		pipe(body, p2);
 		// set instance body to teed body and return the other teed body
 		instance[INTERNALS].body = p1;
 		body = p2;
@@ -498,14 +508,14 @@ export function writeToStream(dest, instance) {
 		// body is null
 		dest.end();
 	} else if (isBlob(body)) {
-		body.stream().pipe(dest);
+		pipe(body.stream(), dest);
 	} else if (Buffer.isBuffer(body)) {
 		// body is buffer
 		dest.write(body);
 		dest.end()
 	} else {
 		// body is stream
-		body.pipe(dest);
+		pipe(body, dest);
 	}
 }
 
